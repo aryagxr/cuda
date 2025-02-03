@@ -7,4 +7,5 @@
 | Day 3      |  Adding matrices                                                   |
 | Day 4      |  Vector addition using cuBLAS                                      |
 | Day 5      |  Naive matmul                                                      |
+| Day 6      |  Tiled matmul using shared memory                                  |
 
