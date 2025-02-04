@@ -8,4 +8,5 @@
 | Day 4      |  Vector addition using cuBLAS                                      |
 | Day 5      |  Naive matmul                                                      |
 | Day 6      |  Tiled matmul using shared memory                                  |
+| Day 7      |  Naive 1D convolution with boundary checks                         |
 
