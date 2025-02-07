@@ -10,4 +10,5 @@
 | Day 6      |  Tiled matmul using shared memory                                  |
 | Day 7      |  Naive 1D convolution with boundary checks                         |
 | Day 8      |  Matrix multiplication using cuBLAS                                |
+| Day 9      |  Matrix Transpose                                                  |
 
