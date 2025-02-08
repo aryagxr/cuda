@@ -11,5 +11,5 @@
 | Day 7      |  Naive 1D convolution with boundary checks                         |
 | Day 8      |  Matrix multiplication using cuBLAS                                |
 | Day 9      |  Matrix Transpose                                                  |
-| Day 10     |  Naive Softmax                                                     |
+| Day 10 🥳  |  Naive Softmax                                                     |
 
