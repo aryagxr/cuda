@@ -12,4 +12,5 @@
 | Day 8      |  Matrix multiplication using cuBLAS                                |
 | Day 9      |  Matrix Transpose                                                  |
 | Day 10 🥳  |  Naive Softmax                                                     |
+| Day 11     |  Softmax using shared memory and reductions                        |
 
