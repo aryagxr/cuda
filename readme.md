@@ -14,4 +14,5 @@
 | Day 10 🥳  |  Naive Softmax                                                     |
 | Day 11     |  Softmax using shared memory and reductions                        |
 | Day 12     |  Softmax using warp shuffle functions                              |
+| Day 13     |  1D complex-to-complex fourier transform using cuFFT               |
 
