@@ -16,4 +16,5 @@
 | Day 12     |  Softmax using warp shuffle functions                              |
 | Day 13     |  1D complex-to-complex fourier transform using cuFFT               |
 | Day 14     |  Naive layer normalization                                         |
+| Day 15     |  Optimizing layer norm using shared memory                         |
 

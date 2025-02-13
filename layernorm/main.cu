@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <cuda.h>
 
-#include "kernels/naive-layernorm.cu"
+#include "kernels/smem-layernorm.cu"
 
 int main(){
 
@@ -26,25 +26,25 @@ int main(){
 
     cudaMemcpy(D_input, X_input, matrix_size, cudaMemcpyHostToDevice);
 
-    run_naive_ln(D_input, D_output, M, N);
+    run_smem_ln(D_input, D_output, M, N);
 
     cudaMemcpy(P_output, D_output, matrix_size, cudaMemcpyDeviceToHost);
 
-    // printf("Input matrix: \n");
-    // for(int i=0; i<M; i++){
-    //     for(int j=0; j<N; j++){
-    //         printf("%f", X_input[i*N+j]);
-    //     }
-    //     printf("\n");
-    // }
+    printf("Input matrix: \n");
+    for(int i=0; i<5; i++){
+        for(int j=0; j<5; j++){
+            printf("%f", X_input[i*N+j]);
+        }
+        printf("\n");
+    }
 
-    // printf("Output matrix: \n");
-    // for(int i=0; i<M; i++){
-    //     for(int j=0; j<N; j++){
-    //         printf("%f", P_output[i*N+j]);
-    //     }
-    //     printf("\n");
-    // }
+    printf("Output matrix: \n");
+    for(int i=0; i<5; i++){
+        for(int j=0; j<5; j++){
+            printf("%f", P_output[i*N+j]);
+        }
+        printf("\n");
+    }
 
     free(P_output); free(X_input);
     cudaFree(D_input); cudaFree(D_output);
