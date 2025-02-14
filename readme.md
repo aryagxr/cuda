@@ -17,4 +17,6 @@
 | Day 13     |  1D complex-to-complex fourier transform using cuFFT               |
 | Day 14     |  Naive layer normalization                                         |
 | Day 15     |  Optimizing layer norm using shared memory                         |
+| Day 16     |  Optimizing layer norm using warp shuffle functions                |
+| Day 17     |  Optimizing layer norm using vectorized loads                      |
 
