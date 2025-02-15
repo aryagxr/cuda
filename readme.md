@@ -19,4 +19,5 @@
 | Day 15     |  Optimizing layer norm using shared memory                         |
 | Day 16     |  Optimizing layer norm using warp shuffle functions                |
 | Day 17     |  Optimizing layer norm using vectorized loads                      |
+| Day 18     |  Tiled 1D convolution and halo cells                               |
 
