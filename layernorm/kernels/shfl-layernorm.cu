@@ -8,7 +8,7 @@
     Warp level shuffle functions are used to perform sum reduction.
 */
 
-#define EPSILON 1e-3
+#define EPSILON 1e-6
 
 __global__ void shfl_layernorm(float *X, float *P, int m, int n){
 
@@ -30,13 +30,14 @@ __global__ void shfl_layernorm(float *X, float *P, int m, int n){
         for(int i=tidx; i<n; i += blockDim.x){
             float a = row_in[i];
             lmean += a;
-            lvar += a*a;
+            lvar += (a*a);
         }
 
         __syncthreads();
 
         // store in register instead of smem
         float lrmean = lmean;
+        __syncthreads();
 
         // global mean, warp level using shuffling
         for(int offset = warp_size/2; offset > 0; offset /= 2){
@@ -56,7 +57,7 @@ __global__ void shfl_layernorm(float *X, float *P, int m, int n){
             if(tidx < warp_size){ // only first warp
                 lrmean = (tidx < (blockDim.x + warp_size - 1) / warp_size) ? smem[tidx] : 0.0f;
                 for(int offset = warp_size / 2; offset > 0; offset /=2){
-                    lrmean = __shfl_down_sync(0xffffffff, lrmean, offset);
+                    lrmean += __shfl_down_sync(0xffffffff, lrmean, offset);
                 }
 
                 if(tidx==0){
@@ -74,19 +75,15 @@ __global__ void shfl_layernorm(float *X, float *P, int m, int n){
         float gmean = smem[0] / n;
         __syncthreads();
 
-        if (tidx == 0) {
-            printf("Row: %d, Local Mean: %f, Global Mean: %f\n", row, lmean, gmean);
-        }
+        
 
 
         
         // local variance
         float lrvar = lvar;
 
-        if (tidx == 0) {
-            printf("Row: %d, Local Variance: %f\n", row, lrvar);
-        }
 
+        
         for(int offset = warp_size/2; offset > 0; offset /= 2){
             lrvar += __shfl_down_sync(0xffffffff, lrvar, offset);
         }
@@ -118,9 +115,7 @@ __global__ void shfl_layernorm(float *X, float *P, int m, int n){
 
         float gvar = (smem[0] / n) -  (gmean * gmean); // Load global variance
 
-        if (tidx == 0) {
-            printf("Row: %d, Global Variance: %f\n", row, gvar);
-        }
+        
 
         gvar = fmaxf(gvar, 0.0f);
         float stddev = rsqrtf(gvar + EPSILON); // 1/stddev
