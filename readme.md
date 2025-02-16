@@ -20,4 +20,5 @@
 | Day 16     |  Optimizing layer norm using warp shuffle functions                |
 | Day 17     |  Optimizing layer norm using vectorized loads                      |
 | Day 18     |  Tiled 1D convolution and halo cells                               |
+| Day 19     |  1D convolution using L2 cache                                     |
 
