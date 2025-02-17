@@ -7,8 +7,8 @@
 
 int main(){
 
-    int M = 4;
-    int N = 4;
+    int M = 1024;
+    int N = 1024;
 
     size_t matrix_size = M*N*sizeof(float);
     float *X_input, *P_output;
@@ -31,16 +31,16 @@ int main(){
     cudaMemcpy(P_output, D_output, matrix_size, cudaMemcpyDeviceToHost);
 
     printf("Input matrix: \n");
-    for(int i=0; i<M; i++){
-        for(int j=0; j<N; j++){
+    for(int i=0; i<5; i++){
+        for(int j=0; j<5; j++){
             printf("%f", X_input[i*N+j]);
         }
         printf("\n");
     }
 
     printf("Output matrix: \n");
-    for(int i=0; i<M; i++){
-        for(int j=0; j<N; j++){
+    for(int i=0; i<5; i++){
+        for(int j=0; j<5; j++){
             printf("%f", P_output[i*N+j]);
         }
         printf("\n");
