@@ -21,4 +21,5 @@
 | Day 17     |  Optimizing layer norm using vectorized loads                      |
 | Day 18     |  Tiled 1D convolution and halo cells                               |
 | Day 19     |  1D convolution using L2 cache                                     |
+| Day 20 🥳  |  [Blog Post: Optimizing Layer Normalization with CUDA](https://aryagxr.com/blogs/cuda-optimizing-layernorm) |
 
