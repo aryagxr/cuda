@@ -23,4 +23,5 @@
 | Day 19     |  1D convolution using L2 cache                                     |
 | Day 20 🥳  |  [Blog Post: Optimizing Layer Normalization with CUDA](https://aryagxr.com/blogs/cuda-optimizing-layernorm) |
 | Day 21     |  Simple self attention                                             |
+| Day 22     |  Optimizing self attention                                         |
 
