@@ -23,7 +23,7 @@ struct SumOp{
 
 struct MaxOp{
     __device__ __forceinline__ float operator()(float a, float b) const { return fmaxf(a,b);}
-    __device__ __forceinline__ float identity() const { return 0.0f; }
+    __device__ __forceinline__ float identity() const { return -INFINITY; }
 };
 
 
@@ -48,9 +48,11 @@ __device__ __forceinline__ void blockReduce(float& val, float *smem, int tidx, i
     __syncthreads();
 
     if(tidx < WARP_SIZE){
-        val = (tidx < threadsPerBlock / WARP_SIZE) ? smem[tidx] : op.identity();
+        val = (tidx < (threadsPerBlock + WARP_SIZE - 1) / WARP_SIZE) ? smem[tidx] : op.identity();
         val = warpReduce(val, op);
-        if (tidx == 0) smem[0] = val;
+        if (tidx == 0) {
+            smem[0] = val;
+        }
     }
     __syncthreads();
 }
@@ -146,7 +148,7 @@ int main(){
     }
 
     
-    softmax_inplace<<<NUM_WORDS, 1>>>(d_attention_scores);
+    softmax_inplace<<<NUM_WORDS, NUM_WORDS, NUM_WORDS * sizeof(float)>>>(d_attention_scores);
     cudaDeviceSynchronize();
 
     cudaMemcpy(h_attention_scores, d_attention_scores, NUM_WORDS * NUM_WORDS * sizeof(float), cudaMemcpyDeviceToHost);
