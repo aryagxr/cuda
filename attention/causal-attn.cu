@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <cuda.h>
 #include <math.h>
+// #include <torch/extension.h>
 
 #define NUM_WORDS 6
 #define EMBED_DIM 3
@@ -167,3 +168,47 @@ int main() {
 
     return 0;
 }
+
+
+// torch::Tensor attention_forward(torch::Tensor input) {
+//     int num_words = input.size(0);
+//     int embed_dim = input.size(1);
+
+//     // Check input tensor type and device
+//     TORCH_CHECK(input.type().is_cuda(), "Input tensor must be on CUDA");
+//     TORCH_CHECK(input.type().scalarType() == torch::kFloat, "Input tensor must be float");
+
+//     float* d_inputs;
+//     float* d_attention_scores;
+//     float* d_context_vectors;
+
+//     cudaMalloc(&d_inputs, num_words * embed_dim * sizeof(float));
+//     cudaMalloc(&d_attention_scores, num_words * num_words * sizeof(float));
+//     cudaMalloc(&d_context_vectors, num_words * embed_dim * sizeof(float));
+
+//     cudaMemcpy(d_inputs, input.data_ptr<float>(), num_words * embed_dim * sizeof(float), cudaMemcpyHostToDevice);
+
+//     attn_scores<<<num_words, num_words>>>(d_inputs, d_attention_scores);  // Corrected
+//     cudaDeviceSynchronize();
+
+//     softmax_inplace<<<num_words, num_words, num_words * sizeof(float)>>>(d_attention_scores); // Corrected
+//     cudaDeviceSynchronize();
+
+//     context_vector<<<num_words, embed_dim>>>(d_inputs, d_attention_scores, d_context_vectors); // Corrected
+//     cudaDeviceSynchronize();
+
+//     torch::Tensor output = torch::empty({num_words, embed_dim}, input.options());
+//     cudaMemcpy(output.data_ptr<float>(), d_context_vectors, num_words * embed_dim * sizeof(float), cudaMemcpyDeviceToHost);
+
+//     cudaFree(d_inputs);
+//     cudaFree(d_attention_scores);
+//     cudaFree(d_context_vectors);
+
+//     return output;
+// }
+
+
+
+// PYBIND11_MODULE(causal_attention, m) {
+//     m.def("attention_forward", &attention_forward, "Attention forward pass");
+// }
