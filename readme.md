@@ -25,4 +25,6 @@
 | Day 21     |  Simple self attention                                             |
 | Day 22     |  Optimizing self attention                                         |
 | Day 23     |  Causal attention with masking                                     |
+| Day 24     |  Causal attention + torch binding                                  |
+| Day 25     |  Multi-head attention                                              |
 
