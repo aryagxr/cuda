@@ -27,4 +27,5 @@
 | Day 23     |  Causal attention with masking                                     |
 | Day 24     |  Causal attention + torch binding                                  |
 | Day 25     |  Multi-head attention                                              |
+| Day 26     |  Parallel add using koggle stone algorithm                         |
 
