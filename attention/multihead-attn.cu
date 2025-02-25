@@ -26,9 +26,11 @@ __global__ void compute_qkv(const float* inp, float* Q, float* K, float* V, int 
         int n = (idx / (NH * d)) % N;
         int h = (idx / d) % NH;
         int dim = idx % d;
+        int C = NH * d;
         
         int q_offset = ((b * NH + h) * N + n) * d + dim;
-        int inp_offset = ((b * N + n) * 3 * NH * d) + (h * d) + dim;
+        // int inp_offset = ((b * N + n) * 3 * NH * d) + (h * d) + dim;
+        int inp_offset = (b * N * C) + ((n * 3 * NH * d) + (h * d) + dim);
         
         Q[q_offset] = inp[inp_offset];
         K[q_offset] = inp[inp_offset + NH * d];
@@ -145,7 +147,7 @@ void multi_head_attention(float* out, const float* inp, int B, int N, int C, int
 
 
 void test_mha() {
-    int B = 2;  // Batch size
+    int B = 2;  // number of input sequence
     int N = 6;  
     int C = 4;  
     int NH = 2; 
@@ -158,9 +160,16 @@ void test_mha() {
     float *h_out = new float[output_size];
 
     
+
+    std::cout << "Input Embeddings:\n";
     for (int i = 0; i < input_size; i++) {
-        h_inp[i] = static_cast<float>(rand()) / RAND_MAX;
+        h_inp[i] = static_cast<float>(rand()) / RAND_MAX; 
+        std::cout << h_inp[i] << " ";
+        if ((i + 1) % C == 0) { 
+            std::cout << "\n";
+        }
     }
+    std::cout << std::endl;
 
     
     float *d_inp, *d_out;
@@ -174,6 +183,7 @@ void test_mha() {
     multi_head_attention(d_out, d_inp, B, N, C, NH);
 
     CHECK_CUDA(cudaMemcpy(h_out, d_out, output_size * sizeof(float), cudaMemcpyDeviceToHost));
+
 
 
     std::cout << "Output:\n";
