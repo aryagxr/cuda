@@ -28,4 +28,6 @@
 | Day 24     |  Causal attention + torch binding                                  |
 | Day 25     |  Multi-head attention                                              |
 | Day 26     |  Parallel add using koggle stone algorithm                         |
+| Day 27     |  MHA debug                                                         |
+| Day 28     |  Flash Attention 1 (algorithm 1) Forward pass                      |
 
