@@ -4,21 +4,35 @@
 #include <cuda.h>
 #include <math.h>
 
+
+
+#define CHECK_CUDA_CALL(call) { \
+    cudaError_t err = call; \
+    if (err != cudaSuccess) { \
+        printf("CUDA error in %s at line %d: %s\n", __FILE__, __LINE__, cudaGetErrorString(err)); \
+        exit(EXIT_FAILURE); \
+    } \
+}
+
+
+
+
+
 __global__ void fa1_forward(float *Q, float *K, float*V, float *O, float *l, float *m, int N, int Br, int Bc, int Tr, int Tc, int d, float scale){
 
     int tidx = threadIdx.x;
 
     // on chip smem for K,V
-    __shared__ float K_tile[Bc][d];
-    __shared__ float V_tile[Bc][d];
-    __shared__ float Q_tile[Br][d]; 
-    __shared__ float O_tile[Br][d];
-    __shared__ float l_tile[Br];
-    __shared__ float m_tile[Br];
+    extern __shared__ float smem[];
+    float *Qi = smem;
+    float *Kj = Qi + Bc * d;
+    float *Vj = Kj + Bc * d;
+    float *Oi = Vj + Bc * d;
+    float *li = Oi + Br;
+    float *mi = li + Br;
 
 
-    int row_offset = blockIdx.x * Br;
-    int col_offset = blockIdx.y * Bc;
+
 
     //  5:  for 1 ≤ 𝑗 ≤ 𝑇𝑐 d
     for(int j = 1; j < Tc; j++){
@@ -30,8 +44,8 @@ __global__ void fa1_forward(float *Q, float *K, float*V, float *O, float *l, flo
         for (int i = tidx; i < Bc * d; i += blockDim.x) {
             int row = i / d;
             int col = i % d;
-            K_tile[row][col] = K[k_offset + i]; // Load from HBM (global memory)
-            V_tile[row][col] = V[v_offset + i];
+            Kj[row * d + col] = K[k_offset + i]; // Load K from global memory
+            Vj[row * d + col] = V[v_offset + i]; // Load V from global memory
         }
         __syncthreads();
 
@@ -48,13 +62,13 @@ __global__ void fa1_forward(float *Q, float *K, float*V, float *O, float *l, flo
             for(int t = tidx; t < Br * d; t += blockDim.x){
                 int row = t/d;
                 int col = t%d;
-                Q_tile[row][col] = Q[Q_offset + t];
-                O_tile[row][col] = O[O_offset + t];
+                Qi[row * d + col] = Q[Q_offset + t]; // Load Q from global memory
+                Oi[row * d + col] = O[O_offset + t]; // Load O from global memory
             }
 
             for (int t = tidx; t < Br; t += blockDim.x) {
-                l_tile[t] = l[l_offset + t];
-                m_tile[t] = m[m_offset + t];
+                li[t] = l[l_offset + t];
+                mi[t] = m[m_offset + t];
             }
             __syncthreads();
         
