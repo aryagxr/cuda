@@ -11,6 +11,10 @@ __global__ void fa1_forward(float *Q, float *K, float*V, float *O, float *l, flo
     // on chip smem for K,V
     __shared__ float K_tile[Bc][d];
     __shared__ float V_tile[Bc][d];
+    __shared__ float Q_tile[Br][d]; 
+    __shared__ float O_tile[Br][d];
+    __shared__ float l_tile[Br];
+    __shared__ float m_tile[Br];
 
 
     int row_offset = blockIdx.x * Br;
@@ -40,10 +44,22 @@ __global__ void fa1_forward(float *Q, float *K, float*V, float *O, float *l, flo
             int l_offset = i * Br;
             int m_offset = i * Br;
 
-            __shared__ float Q_tile[Br][d]; 
-            __shared__ float O_tile[Br][d];
-            __shared__ float l_tile[Br];
-            __shared__ float m_tile[Br];
+            // 8:  Load Q𝑖, O𝑖, ℓ𝑖, 𝑚𝑖 from HBM to on-chip SRAM
+            for(int t = tidx; t < Br * d; t += blockDim.x){
+                int row = t/d;
+                int col = t%d;
+                Q_tile[row][col] = Q[Q_offset + t];
+                O_tile[row][col] = O[O_offset + t];
+            }
+
+            for (int t = tidx; t < Br; t += blockDim.x) {
+                l_tile[t] = l[l_offset + t];
+                m_tile[t] = m[m_offset + t];
+            }
+            __syncthreads();
+        
+
+
         }
 
 
