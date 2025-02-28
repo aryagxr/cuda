@@ -32,4 +32,5 @@
 | Day 28     |  Flash Attention 1 (algorithm 1) Forward pass                      |
 | Day 29     |  Flash Attention 1 (algorithm 1) Forward pass continued            |
 | Day 30 🥳  |  Flash Attention 1 (algorithm 1) Forward pass                      |
+| Day 31     |  HGEMV matvec using fp16                                                     |
 
