@@ -34,4 +34,5 @@
 | Day 30 🥳  |  Flash Attention 1 (algorithm 1) Forward pass                      |
 | Day 31     |  HGEMV matvec using fp16                                           |
 | Day 32     |  HGEMV matvec using Bfloat16                                       |
+| Day 33     |  Matmul using Tensor cores                                         |
 
