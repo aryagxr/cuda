@@ -35,4 +35,5 @@
 | Day 31     |  HGEMV matvec using fp16                                           |
 | Day 32     |  HGEMV matvec using Bfloat16                                       |
 | Day 33     |  Matmul using Tensor cores                                         |
+| Day 34     |  Swizzle patterns on matrix transpose                              |
 
