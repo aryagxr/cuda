@@ -37,4 +37,6 @@
 | Day 33     |  Matmul using Tensor cores                                         |
 | Day 34     |  Swizzle patterns on matrix transpose                              |
 | Day 35     |  Swizzled matrix transpose using Tensor Memory Accelerators        |
+| Day 36     |  Brent Kung Parallel Scan algorithm                                |
+| Day 37     |  Matvec using integer fixed point arithmetic                       |
 

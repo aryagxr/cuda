@@ -62,3 +62,23 @@ void run_kernel2_hgemv_bf16(__nv_bfloat16* d_A, __nv_bfloat16* d_v, __nv_bfloat1
 
     kernel2_hgemv_bf16<<<gridSize, blockSize>>>(d_A, d_v, d_C);
 }
+
+
+/*  Kernel 3: Matrix vector multiplication Using int8 mixed precision
+*/
+
+__global__ void kernel3_hgemv_int8(int8_t* A, int8_t* v, int32_t* C){
+    int row = threadIdx.x + blockDim.x * blockIdx.x;
+    int32_t acc = 0;
+    for (int i = 0; i < N; i++) {
+        acc += static_cast<int32_t>(A[row * N + i]) * static_cast<int32_t>(v[i]);
+    }
+    C[row] = acc;
+}
+
+void run_kernel3_hgemv_int8(int8_t* d_A, int8_t* d_v, int32_t* d_C){
+    int blockSize = 256;
+    int gridSize = (M + blockSize - 1) / blockSize;
+
+    kernel3_hgemv_int8<<<gridSize, blockSize>>>(d_A, d_v, d_C);
+}
