@@ -39,4 +39,5 @@
 | Day 35     |  Swizzled matrix transpose using Tensor Memory Accelerators        |
 | Day 36     |  Brent Kung Parallel Scan algorithm                                |
 | Day 37     |  Matvec using integer fixed point arithmetic                       |
+| Day 38     |  Transfered 1D array from gmem->smem->gmem using TMA               |
 
