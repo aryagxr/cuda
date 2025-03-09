@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <cuda.h>
 
-#include "kernels/vectorized-layernorm.cu"
+#include "kernels/coalesced-layernorm.cu"
 
 int main(){
 
@@ -26,7 +26,7 @@ int main(){
 
     cudaMemcpy(D_input, X_input, matrix_size, cudaMemcpyHostToDevice);
 
-    run_vect_ln(D_input, D_output, M, N);
+    run_coalesced_ln(D_input, D_output, M, N);
 
     cudaMemcpy(P_output, D_output, matrix_size, cudaMemcpyDeviceToHost);
 
