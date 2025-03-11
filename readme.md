@@ -42,4 +42,5 @@
 | Day 38     |  Transfered 1D array from gmem->smem->gmem using TMA               |
 | Day 39     |  Memory Coalesced layernorm + revisited Flash attention            |
 | Day 40 🥳  |  revisited Flash Attention 1                                       |
+| Day 41     |  reimplemented Flash Attention 1                                   |
 
