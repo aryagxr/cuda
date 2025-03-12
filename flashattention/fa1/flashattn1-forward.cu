@@ -5,7 +5,7 @@
 #include <math.h>
 
 
-
+//TODO: Reduce if(tx < Br) checks 
 
 
 __global__ void fa1_forward(float *Q, float *K, float*V, 
@@ -87,7 +87,7 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
             __syncthreads();
 
 
-            
+            /*
             // Printing loaded mi and li values
             if (bx == 0 && by == 0 && tx == 0) { // Print for the first block only
                 printf("Tile %d: mi values: ", j);
@@ -100,6 +100,7 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
                 }
                 printf("\n");
             }
+            */
             
             
 
@@ -112,6 +113,7 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
             }
 
             
+            /*
             // print Sij
             if (bx == 0 && by == 0 && tx == 0) {
                 printf("Tile %d: Sij Computed:\n", j);
@@ -122,6 +124,7 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
                     printf("\n");
                 }
             }
+            */
             
 
             
@@ -143,6 +146,8 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
             __syncthreads();
 
 
+
+            /*
             // print m_ij rowmax values
             if (bx == 0 && by == 0 && tx == 0) {
                 printf("Tile %d: m_ij values:\n", j);
@@ -158,6 +163,7 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
                 }
                 printf("\n");
             }
+            */    
 
 
             
@@ -178,6 +184,7 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
             __syncthreads();
 
 
+            /*
             // print Sij, which now has Pij values and l_ij
             if (bx == 0 && by == 0 && tx == 0) { 
                 printf("Sij matrix (Br x Bc):\n");
@@ -197,25 +204,53 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
                 for (int t = 0; t < Br; t++) {
                     printf("Li_new[%d] = %f\n", t, li_new[t]);
                 }
-
             }
+            */
+
 
             // 12: Update Oi and write it back to HBM
             // Oi ← diag(li_new)^(-1) * (diag(li) * e^(mi - mi_new) * Oi + e^(m_ij - mi_new) * P_ij * Vj)
-            
+            if(tx < Br){
+
+                float pv = 0.0f;
+
+                for(int y = 0; y < Bc; y++) {
+                    pv += Sij[tx * Bc + y] * Vj[y * d + tx];  
+                }
+
+                for(int x = 0; x < d; x++) {
+                    Oi[tx * d + x] = (1 / li_new[tx]) * (
+                        (li[tx] * expf(mi[tx] - mi_new[tx]) * Oi[tx * d + x])  // diag(li) * e^(mi - mi_new) * Oi
+                        + (expf(m_ij[tx] - mi_new[tx]) * pv)  // e^(m_ij - mi_new) * P_ij * Vj
+                    );
+                    O[qkv_offs + (qo_tile * j) + (tx * d) + x] = Oi[tx * d + x];
+                }
+
+                
+
+                // 13: Write li, mi to HBM
+                m[lm_offs + (j * Br) + tx] = mi_new[tx];
+                l[lm_offs + (j * Br) + tx] = li_new[tx];
+            }
+            __syncthreads();
 
 
-
-
-
-
-            
-
+            /*
+            if (bx == 0 && by == 0 && tx == 0) {
+                printf("Final Oi values:\n");
+                for (int i = 0; i < Br; i++) {
+                    printf("Oi[%d]: ", i);
+                    for (int x = 0; x < d; x++) {
+                        printf("%f ", Oi[i * d + x]);
+                    }
+                    printf("\n");
+                }
+            }
+            */
 
         } // 14: close innerloop
 
     } // 15: close outerloop
-
 
 }
 
@@ -240,6 +275,7 @@ int main() {
     float *h_V = new float[total_size];
     float *h_m = new float[BATCH * HEADS * SEQ_LEN];  // New array for m
     float *h_l = new float[BATCH * HEADS * SEQ_LEN];  // New array for l
+    float *h_O = new float[total_size];
 
     // Initialize Q, K, V with known values
     for (int b = 0; b < BATCH; b++) {
@@ -260,6 +296,10 @@ int main() {
     for (int i = 0; i < BATCH * HEADS * SEQ_LEN; i++) {
         h_m[i] = -INFINITY;
         h_l[i] = 0;
+    }
+
+    for (int i = 0; i < total_size; i++) {
+        h_O[i] = 0;
     }
 
 
@@ -295,6 +335,29 @@ int main() {
         }
     }
 
+    // Print the output matrix O
+    std::cout << "Output O Matrix:\n";
+    for (int b = 0; b < BATCH; b++) {
+        for (int h = 0; h < HEADS; h++) {
+            std::cout << "Batch " << b << ", Head " << h << ":\n";
+            for (int s = 0; s < SEQ_LEN; s++) {
+                for (int e = 0; e < EMBED_DIM; e++) {
+                    int idx = ((b * HEADS + h) * SEQ_LEN + s) * EMBED_DIM + e;
+                    std::cout << h_O[idx] << " ";
+                }
+                std::cout << "\n";
+            }
+            std::cout << "\n";
+        }
+    }
+
+    /*--------------------------------------------------------------------*/
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    float ms = 0.0f;
+
     // Allocate device memory
     float *d_Q, *d_K, *d_V, *d_O, *d_l, *d_m;
     cudaMalloc(&d_Q, total_size * sizeof(float));
@@ -304,21 +367,42 @@ int main() {
     cudaMalloc(&d_l, BATCH * HEADS * SEQ_LEN * sizeof(float));
     cudaMalloc(&d_m, BATCH * HEADS * SEQ_LEN * sizeof(float));
 
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&ms, start, stop);
+    printf(">> GPU allocation time: %f ms\n", ms);
+
+    /*--------------------------------------------------------------------*/
+
+    cudaEventRecord(start);
+
     // Copy data to device
     cudaMemcpy(d_Q, h_Q, total_size * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_K, h_K, total_size * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_V, h_V, total_size * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_m, h_m, BATCH * HEADS * SEQ_LEN * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_l, h_l, BATCH * HEADS * SEQ_LEN * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(h_O, d_O, total_size * sizeof(float), cudaMemcpyDeviceToHost);
 
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&ms, start, stop);
+    printf(">> Host to device transfer time: %f ms\n", ms);
 
+    /*--------------------------------------------------------------------*/
 
     // Define grid and block size
     dim3 grid(BATCH, HEADS);
     dim3 block(SEQ_LEN);
 
     int shared_mem_size = (Br * EMBED_DIM) + (2 * Bc * EMBED_DIM) + (Br * Bc) + (Br * EMBED_DIM);
+    int max_sram_size;
+    cudaDeviceGetAttribute(&max_sram_size, cudaDevAttrMaxSharedMemoryPerBlock, 0);
+    printf("Max shared memory: %d, requested shared memory: %d \n", max_sram_size, shared_mem_size);
 
+    /*--------------------------------------------------------------------*/
+    
+    cudaEventRecord(start);
     // Launch kernel
     fa1_forward<<<grid, block, shared_mem_size>>>(d_Q, d_K, d_V, d_O, d_l, d_m,
                                                   SEQ_LEN, EMBED_DIM, 1.0f,
@@ -326,6 +410,40 @@ int main() {
     
     // Wait for kernel to finish
     cudaDeviceSynchronize();
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&ms, start, stop);
+    printf(">> Flash-Attention 1 kernel execution time: %f ms\n", ms);
+
+    /*--------------------------------------------------------------------*/
+
+    cudaEventRecord(start);
+    cudaMemcpy(h_O, d_O, total_size * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&ms, start, stop);
+    printf(">> Device to host transfer time: %f ms\n", ms);
+
+    /*--------------------------------------------------------------------*/
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
+    // Print the final output O matrix
+    std::cout << "Final Output O Matrix:\n";
+    for (int b = 0; b < BATCH; b++) {
+        for (int h = 0; h < HEADS; h++) {
+            std::cout << "Batch " << b << ", Head " << h << ":\n";
+            for (int s = 0; s < SEQ_LEN; s++) {
+                for (int e = 0; e < EMBED_DIM; e++) {
+                    int idx = ((b * HEADS + h) * SEQ_LEN + s) * EMBED_DIM + e;
+                    std::cout << h_O[idx] << " ";
+                }
+                std::cout << "\n";
+            }
+            std::cout << "\n";
+        }
+    }
 
     // Free memory
     delete[] h_Q;
@@ -333,6 +451,7 @@ int main() {
     delete[] h_V;
     delete[] h_m;
     delete[] h_l;
+    delete[] h_O;
     cudaFree(d_Q);
     cudaFree(d_K);
     cudaFree(d_V);
