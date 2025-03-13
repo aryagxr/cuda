@@ -45,4 +45,5 @@
 | Day 41     |  Flash Attention 1                                                 |
 | Day 42     |  Flash Attention 1                                                 |
 | Day 43     |  ReLU Activation - FP32, FP32x4, FP16, FP16x2 vectorized           |
+| Day 44     |  Overlapping data transfers using CUDA Streams (Vector add)        |
 
