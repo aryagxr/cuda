@@ -9,7 +9,6 @@
 #include <iostream>
 
 
-// The [0] accesses the first float4 that starts at the memory address &x[idx]
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
 #define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
 
@@ -69,144 +68,110 @@ __global__ void kernel4_relu_2fp16(half* in, half* out, int n){
 
 
 
-/* Host helper Functions */
 
-void initialize_data(float* in_fp32, half* in_fp16, int size) {
-    unsigned long long seed = 1234;
+
+// /* Host helper Functions */
+
+// void initialize_data(float* in_fp32, half* in_fp16, int size) {
+//     unsigned long long seed = 1234;
     
-    for (int i = 0; i < size; ++i) {
-        in_fp32[i] = (rand() / float(RAND_MAX)) * 2.0f - 1.0f; // Random float in range [-1, 1]
-    }
+//     for (int i = 0; i < size; ++i) {
+//         in_fp32[i] = (rand() / float(RAND_MAX)) * 2.0f - 1.0f; // Random float in range [-1, 1]
+//     }
     
-    for (int i = 0; i < size; ++i) {
-        in_fp16[i] = __float2half((rand() / float(RAND_MAX)) * 2.0f - 1.0f); // Random float in range [-1, 1]
-    }
-}
+//     for (int i = 0; i < size; ++i) {
+//         in_fp16[i] = __float2half((rand() / float(RAND_MAX)) * 2.0f - 1.0f); // Random float in range [-1, 1]
+//     }
+// }
 
-void print_float_array(float* arr, int size) {
-    for (int i = 0; i < size; ++i) {
-        std::cout << arr[i] << " ";
-    }
-    std::cout << std::endl;
-}
+// void print_float_array(float* arr, int size) {
+//     for (int i = 0; i < size; ++i) {
+//         std::cout << arr[i] << " ";
+//     }
+//     std::cout << std::endl;
+// }
 
-void print_half_array(half* arr, int size) {
-    for (int i = 0; i < size; ++i) {
-        std::cout << __half2float(arr[i]) << " ";
-    }
-    std::cout << std::endl;
-}
+// void print_half_array(half* arr, int size) {
+//     for (int i = 0; i < size; ++i) {
+//         std::cout << __half2float(arr[i]) << " ";
+//     }
+//     std::cout << std::endl;
+// }
 
 
 int main(){
     const int N = 1024;
+    size_t fp32_size = N * sizeof(float);
 
-    // Host arrays
-    float* h_in_fp32 = new float[N];
-    float* h_out_fp32_1 = new float[N];  
-    float* h_out_fp32_2 = new float[N];  
-    half* h_in_fp16 = new half[N];
-    half* h_out_fp16_1 = new half[N];    
-    half* h_out_fp16_2 = new half[N];    
+    float *X, *P, *P2;
+    float *dx, *dp, *dp2;
+    
+    X = (float*)malloc(fp32_size);
+    P = (float*)malloc(fp32_size);
+    P2 = (float*)malloc(fp32_size);
 
-    initialize_data(h_in_fp32, h_in_fp16, N);
+    cudaMalloc((void**)&dx, fp32_size);
+    cudaMalloc((void**)&dp, fp32_size);
+    cudaMalloc((void**)&dp2, fp32_size);
+    
+    for (int i = 0; i < N; ++i) {
+        X[i] = (rand() / float(RAND_MAX)) * 2.0f - 1.0f;
+    }
 
-    float *d_in_fp32, *d_out_fp32_1, *d_out_fp32_2;
-    half *d_in_fp16, *d_out_fp16_1, *d_out_fp16_2;
-    cudaMalloc((void**)&d_in_fp32, N * sizeof(float));
-    cudaMalloc((void**)&d_out_fp32_1, N * sizeof(float));
-    cudaMalloc((void**)&d_out_fp32_2, N * sizeof(float));
-    cudaMalloc((void**)&d_in_fp16, N * sizeof(half));
-    cudaMalloc((void**)&d_out_fp16_1, N * sizeof(half));
-    cudaMalloc((void**)&d_out_fp16_2, N * sizeof(half));
 
-    cudaMemcpy(d_in_fp32, h_in_fp32, N * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_in_fp16, h_in_fp16, N * sizeof(half), cudaMemcpyHostToDevice);
+    cudaMemcpy(dx, X, fp32_size, cudaMemcpyHostToDevice);
+
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (N + threadsPerBlock-1) / threadsPerBlock;
+    int blocksPerGrid_vec = (N / 4 + threadsPerBlock - 1) / threadsPerBlock;
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
+    float ms = 0.f;
     cudaEventRecord(start);
-
-    int blockSize = 256;
-    int gridSize = (N + blockSize - 1) / blockSize;
     
-    kernel1_relu_fp32<<<gridSize, blockSize>>>(d_in_fp32, d_out_fp32_1, N);
+
+    kernel1_relu_fp32<<<blocksPerGrid, threadsPerBlock>>>(dx, dp, N);
     cudaDeviceSynchronize();
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
-    float time1 = 0;
-    cudaEventElapsedTime(&time1, start, stop);
+    cudaEventElapsedTime(&ms, start, stop);
+    std::cout << "Scalar FP32 Kernel1 execution time: " << ms << " ms\n";
 
+    cudaMemcpy(P, dp, fp32_size, cudaMemcpyDeviceToHost);
+
+
+    // Run vectorized FP32 * 4 kernel
     cudaEventRecord(start);
-    kernel2_relu_4fp32<<<gridSize, blockSize>>>(d_in_fp32, d_out_fp32_2, N);
+    kernel2_relu_4fp32<<<blocksPerGrid_vec, threadsPerBlock>>>(dx, dp2, N);
     cudaDeviceSynchronize();
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
-    float time2 = 0;
-    cudaEventElapsedTime(&time2, start, stop);
+    cudaEventElapsedTime(&ms, start, stop);
+    std::cout << "Vectorized FP32*4 Kernel2 execution time: " << ms << " ms\n";
 
-    cudaEventRecord(start);
-    kernel3_relu_fp16<<<gridSize, blockSize>>>(d_in_fp16, d_out_fp16_1, N);
-    cudaDeviceSynchronize();
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float time3 = 0;
-    cudaEventElapsedTime(&time3, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
-    cudaEventRecord(start);
-    kernel4_relu_2fp16<<<gridSize, blockSize>>>(d_in_fp16, d_out_fp16_2, N);
-    cudaDeviceSynchronize();
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float time4 = 0;
-    cudaEventElapsedTime(&time4, start, stop);
+    cudaMemcpy(P2, dp2, fp32_size, cudaMemcpyDeviceToHost);
 
-    cudaMemcpy(h_out_fp32_1, d_out_fp32_1, N * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_out_fp32_2, d_out_fp32_2, N * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_out_fp16_1, d_out_fp16_1, N * sizeof(half), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_out_fp16_2, d_out_fp16_2, N * sizeof(half), cudaMemcpyDeviceToHost);
 
-    // Print the input matrices before kernel launch
-    std::cout << "Input FP32 matrix (first 5 elements): ";
-    print_float_array(h_in_fp32, 5);
+    for (int i = 0; i < 10; ++i) {
+        std::cout << P[i] << " ";
+    }
+    std::cout << std::endl;
 
-    std::cout << "Input FP16 matrix (first 5 elements): ";
-    print_half_array(h_in_fp16, 5);
+    for (int i = 0; i < 10; ++i) {
+        std::cout << P2[i] << " ";
+    }
 
-    // Print the output matrices after kernel execution
-    std::cout << "Output of kernel 1 (FP32, first 5 elements): ";
-    print_float_array(h_out_fp32_1, 5);
 
-    std::cout << "Output of kernel 2 (FP32 * 4, first 5 elements): ";
-    print_float_array(h_out_fp32_2, 5);
-
-    std::cout << "Output of kernel 3 (FP16, first 5 elements): ";
-    print_half_array(h_out_fp16_1, 5);
-
-    std::cout << "Output of kernel 4 (FP16 * 2, first 5 elements): ";
-    print_half_array(h_out_fp16_2, 5);
-
-    std::cout << "Kernel 1 execution time: " << time1 << " ms" << std::endl;
-    std::cout << "Kernel 2 execution time: " << time2 << " ms" << std::endl;
-    std::cout << "Kernel 3 execution time: " << time3 << " ms" << std::endl;
-    std::cout << "Kernel 4 execution time: " << time4 << " ms" << std::endl;
-
-    cudaFree(d_in_fp32);
-    cudaFree(d_out_fp32_1);
-    cudaFree(d_out_fp32_2);
-    cudaFree(d_in_fp16);
-    cudaFree(d_out_fp16_1);
-    cudaFree(d_out_fp16_2);
-
-    delete[] h_in_fp32;
-    delete[] h_out_fp32_1;
-    delete[] h_out_fp32_2;
-    delete[] h_in_fp16;
-    delete[] h_out_fp16_1;
-    delete[] h_out_fp16_2;
+    cudaFree(dx); cudaFree(dp); cudaFree(dp2);
+    free(X); free(P); free(P2);
 
     return 0;
+    
 }
 
