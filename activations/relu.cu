@@ -11,6 +11,7 @@
 
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
 #define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
+#define BITS128(value) (reinterpret_cast<float4*>(&(value))[0])
 
 
 /*  Kernel 1: FP32 */
@@ -62,6 +63,26 @@ __global__ void kernel4_relu_2fp16(half* in, half* out, int n){
         y.x = __hmax(zero, x.x);
         y.y = __hmax(zero, x.y);
         HALF2(out[tidx]) = y;
+    }
+}
+
+
+/* Kernel 5: 128 bit Packed FP16 * 8 */
+__global__ void kernel5_relu_8fp16_packed(half* in, half* out, int n){
+    int tidx = (threadIdx.x + (blockDim.x * blockIdx.x)) * 8;
+    half zero = __float2half(0.0f);
+    const half2 x = {zero, zero};
+    half pack_in[8], pack_out[8];
+
+    BITS128(pack_in[0]) = BITS128(in[tidx]);
+
+    #pragma unroll
+    for(int i = 0; i < 8; i+=2){
+        HALF2(pack_out[i]) = __hmax2(HALF2(pack_in[i]), x);
+    }
+
+    if ((tidx + 7) < n){
+        BITS128(out[tidx]) = BITS128(pack_out[0]);
     }
 }
 
