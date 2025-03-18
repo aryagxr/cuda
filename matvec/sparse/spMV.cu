@@ -20,6 +20,21 @@ __global__ void SpMV_CSR(int rows, float *data, int *col_idx, int *row_ptr, floa
 }
 
 
+__global__ void SpMV_ell(int rows, float *data, int *col_idx, int n, float *x, float *y){
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if (row < rows) {
+        float dot = 0.0;
+        
+        for (int i = 0; i < n; i++) {
+            dot += data[row + i * rows] * x[col_idx[row + i * rows]];
+        }
+        
+        y[row] += dot;
+    }
+}
+
+
 int main() {
     const int rows = 4;
     const int nnz = 9; // number of non-zero elements

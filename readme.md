@@ -49,4 +49,5 @@
 | Day 45     |  ReLU using CUDA Streams + benchmarked                             |
 | Day 46     |  Packed 128 bit ReLU FP16x8 kernel                                 |
 | Day 47     |  Sparse matrix-vector mul (spMV)                                   |
+| Day 48     |  Sparse padded matrix-vector mul                                   |
 
