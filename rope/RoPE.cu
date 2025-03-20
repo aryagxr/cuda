@@ -47,6 +47,13 @@ __global__ void kernel1_rope_naive(float* X, float* Ro, int d){
 }
 
 
+/*
+    Kernel 2: 
+    Using FP32 * 4, vectorized loads.
+    One thread processes two even/odd pairs of input.
+    One thread reads and writes 4 floats at a time.
+    Assuming single head, SEQ_LEN * d input matrix. 
+*/
 __global__ void kernel2_rope_vectorized(float* X, float* Ro, int d){
     
     int tidx = (threadIdx.x + blockDim.x * blockIdx.x) * 2;
@@ -82,7 +89,12 @@ __global__ void kernel2_rope_vectorized(float* X, float* Ro, int d){
 }
 
 
-
+/*
+    Kernel 3: 
+    Using FP16, half precision.
+    One thread processes one even/odd pair of input.
+    Assuming single head, SEQ_LEN * d input matrix. 
+*/
 __global__ void kernel3_rope_fp16(half* X, half* Ro, int d){
 
     int tidx = threadIdx.x + blockDim.x * blockIdx.x;
