@@ -52,4 +52,5 @@
 | Day 48     |  Sparse padded matrix-vector mul                                   |
 | Day 49     |  RoPE Kernel: Rotary Position Embedding naive fp32                 |
 | Day 50 🥳  |  Optimized RoPE using vectorized loads and half precision (18x)    |
+| Day 51     |  Flash Attention 2 Forward                                         |
 

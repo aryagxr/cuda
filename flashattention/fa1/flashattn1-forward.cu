@@ -76,13 +76,13 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
             for(int x = 0; x<d; x++){
 
                 // 8: Load Q𝑖, O𝑖, ℓ𝑖, 𝑚𝑖 from HBM to on-chip SRAM
-                Qi[x + (tx * d)] = Q[qkv_offs + (qo_tile * j) + (tx * d) + x];
-                Oi[x + (tx * d)] = O[qkv_offs + (qo_tile * j) + (tx * d) + x];
+                Qi[x + (tx * d)] = Q[qkv_offs + (qo_tile * i) + (tx * d) + x];
+                Oi[x + (tx * d)] = O[qkv_offs + (qo_tile * i) + (tx * d) + x];
 
             }
             if (tx < Br) {
-                mi[tx] = m[lm_offs + (j * Br) + tx];  // Load mi from gmem
-                li[tx] = l[lm_offs + (j * Br) + tx];  // Load li from gmem
+                mi[tx] = m[lm_offs + (i * Br) + tx];  // Load mi from gmem
+                li[tx] = l[lm_offs + (i * Br) + tx];  // Load li from gmem
             }
             __syncthreads();
 
