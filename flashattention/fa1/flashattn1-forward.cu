@@ -235,7 +235,7 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
             __syncthreads();
 
 
-            /*
+            
             if (bx == 0 && by == 0 && tx == 0) {
                 printf("Final Oi values:\n");
                 for (int i = 0; i < Br; i++) {
@@ -246,7 +246,7 @@ __global__ void fa1_forward(float *Q, float *K, float*V,
                     printf("\n");
                 }
             }
-            */
+            
 
         } // 14: close innerloop
 

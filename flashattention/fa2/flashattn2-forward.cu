@@ -48,11 +48,28 @@ __global__ void fa2_forward(float *Q, float *K, float*V,
         }
         __syncthreads();
 
+
+
         // 5: On chip initialize li(0) = (0)Br; mi(0) = (-inf)Br
         if(tx < Br){
             mij[tx] = -INFINITY;
             lij[tx] = 0.0f;
         }
+
+        
+        // Printing loaded mi and li values
+        if (bx == 0 && by == 0 && tx == 0) { // Print for the first block only
+            printf("Tile %d: mi values: ", i);
+            for (int t = 0; t < Br; t++) {
+                printf("%f ", mij[t]);
+            }
+            printf("\nTile %d: li values: ", i);
+            for (int t = 0; t < Br; t++) {
+                printf("%f ", lij[t]);
+            }
+            printf("\n");
+        }
+            
 
         // 6: for 1 ≤ 𝑗 ≤ 𝑇𝑐 do
         for(int j = 0; j < Tc; j++){
@@ -63,6 +80,21 @@ __global__ void fa2_forward(float *Q, float *K, float*V,
                 Vj[y + (tx * d)] = V[qkv_offset + (kv_tile * j) + (tx * d) + y];
             }
 
+
+            
+            if (bx == 0 && by == 0 && tx == 0) { // Ensure only one block prints
+                printf("Tile %d: Shared K: ", j);
+                for (int i = 0; i < kv_tile; i++) {
+                    printf("%f ", Kj[i]);
+                }
+                printf("\nTile %d: Shared V: ", j);
+                for (int i = 0; i < kv_tile; i++) {
+                    printf("%f ", Vj[i]);
+                }
+                printf("\n");
+            }
+            
+
             // 8: On chip, compute Si j = Q𝑖K𝑇 ∈ (𝐵𝑟×𝐵𝑐)
             for(int c = 0; c < Bc; c++){
                 float acc = 0.0f;
@@ -72,6 +104,17 @@ __global__ void fa2_forward(float *Q, float *K, float*V,
                 Si[(tx * Bc) + c] = acc;
             }
             __syncthreads();
+
+            // print Sij
+            if (bx == 0 && by == 0 && tx == 0) {
+                printf("Tile %d: Sij Computed:\n", j);
+                for (int i = 0; i < Br; i++) {
+                    for (int k = 0; k < Bc; k++) {
+                        printf("%f ", Si[i * Bc + k]);
+                    }
+                    printf("\n");
+                }
+            }
 
 
             float mi_old = mij[tx]; // prev max
@@ -95,16 +138,43 @@ __global__ void fa2_forward(float *Q, float *K, float*V,
                     Si[tx * Bc + y] = expf(Si[tx * Bc + y] - mij[tx]);
                     rowsum += Si[tx * Bc + y]; // rowsum of Pij_dash
                 }
-
+            
                 // 9: ℓᵢ⁽ʲ⁾ = exp(mᵢ⁽ʲ⁻¹⁾ - mᵢ⁽ʲ⁾) * ℓᵢ⁽ʲ⁻¹⁾ + rowsum(P_ij_dash)
                 lij[tx] = expf(mi_old - mij[tx]) * lij[tx] + rowsum;
             }
             __syncthreads();
 
+            // print Pij
+            if (bx == 0 && by == 0 && tx == 0) {
+                printf("Tile %d: Pij Computed:\n", j);
+                for (int i = 0; i < Br; i++) {
+                    for (int k = 0; k < Bc; k++) {
+                        printf("%f ", Si[i * Bc + k]);
+                    }
+                    printf("\n");
+                }
+
+                // Print mij values
+                printf("Tile %d: mij values:\n", j);
+                for (int i = 0; i < Br; i++) {
+                    printf("%f ", mij[i]);
+                }
+                printf("\n");
+                
+                // Print lij values
+                printf("Tile %d: lij values:\n", j);
+                for (int i = 0; i < Br; i++) {
+                    printf("%f ", lij[i]);
+                }
+                printf("\n");
+            }
+            
+
 
             // 10: On chip, compute Oi(j) = diag(e^(mi(j-1)-mi(j)))^(-1) * Oi(j-1) + P˜i(j) * Vj
             if(tx < Br){
-                float scale = expf(mij[tx] - mi_old);
+                //float mscale = expf(mij[tx] - mi_old);
+                float mscale = (mi_old == -INFINITY) ? 1.0f : expf(mij[tx] - mi_old);
                 for(int x = 0; x < d; x++){
                     float pv_sum = 0.0f;
 
@@ -114,10 +184,23 @@ __global__ void fa2_forward(float *Q, float *K, float*V,
                     }
 
                     // update output Oij
-                    Oi[tx * d + x] =  scale * Oi[tx * d + x] + pv_sum;
+                    Oi[tx * d + x] =  mscale * Oi[tx * d + x] + pv_sum;
                 }
             }
             __syncthreads();
+
+            // Print Oi matrix after step 10
+            if (bx == 0 && by == 0 && tx == 0) {
+                printf("Tile %d: Oi matrix:\n", j);
+                for (int i = 0; i < Br; i++) {
+                    for (int x = 0; x < d; x++) {
+                        printf("%f ", Oi[i * d + x]);
+                    }
+                    printf("\n");
+                }
+                printf("\n");
+            }
+
 
         } // 11: end inner for
 
@@ -290,7 +373,7 @@ int main(){
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&ms, start, stop);
-    printf(">> Flash-Attention 1 kernel execution time: %f ms\n", ms);
+    printf(">> Flash-Attention 2 kernel execution time: %f ms\n", ms);
 
     /*--------------------------------------------------------------------*/
 
