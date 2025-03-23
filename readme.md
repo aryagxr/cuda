@@ -54,4 +54,6 @@
 | Day 50 🥳  |  Optimized RoPE using vectorized loads and half precision (18x)    |
 | Day 51     |  Flash Attention 2 Forward                                         |
 | Day 52     |  Flash Attention 2 Forward                                         |
+| Day 53     |  Flash Attention 2 Forward                                         |
+| Day 54     |  Gaussian Elimination                                              |
 
