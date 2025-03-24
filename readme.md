@@ -56,4 +56,5 @@
 | Day 52     |  Flash Attention 2 Forward                                         |
 | Day 53     |  Flash Attention 2 Forward                                         |
 | Day 54     |  Gaussian Elimination                                              |
+| Day 55     |  PTX vector add kernel                                             |
 

@@ -1,0 +1,54 @@
+.version 7.0
+.target sm_80
+.address_size 64
+
+.visible .entry vector_add(
+    .param .u64 A,
+    .param .u64 B,
+    .param .u64 C,
+    .param .u32 N
+) 
+{
+    .reg .u32 tid;
+    .reg .u32 N_val;
+    .reg .u64 A_base, B_base, C_base;
+    .reg .u64 A_addr, B_addr, C_addr;
+    .reg .f32 a_val, b_val, c_val;
+    .reg .pred p1;
+
+    // Load parameter values
+    ld.param.u64 A_base, [A];
+    ld.param.u64 B_base, [B];
+    ld.param.u64 C_base, [C];
+    ld.param.u32 N_val, [N];
+
+    mov.u32 tid, %tid.x;
+
+    setp.ge.u32 p1, tid, N_val;
+    @p1 ret;
+
+    // offset (tid * 4 bytes)
+    mul.wide.u32 A_addr, tid, 4;
+    
+    // Add base address to offset
+    add.u64 A_addr, A_addr, A_base;
+    
+    
+    mul.wide.u32 B_addr, tid, 4;
+    add.u64 B_addr, B_addr, B_base;
+    
+    mul.wide.u32 C_addr, tid, 4;
+    add.u64 C_addr, C_addr, C_base;
+
+    // Load values from gmem
+    ld.global.f32 a_val, [A_addr];
+    ld.global.f32 b_val, [B_addr];
+
+    // Perform addition
+    add.f32 c_val, a_val, b_val;
+
+    // Store result back to global memory
+    st.global.f32 [C_addr], c_val;
+
+    ret;
+}
