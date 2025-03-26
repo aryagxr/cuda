@@ -57,4 +57,5 @@
 | Day 53     |  Flash Attention 2 Forward                                         |
 | Day 54     |  Gaussian Elimination                                              |
 | Day 55     |  PTX vector add kernel                                             |
+| Day 56     |  GELU activatation naive fp32 kernel                               |
 
