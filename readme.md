@@ -59,4 +59,5 @@
 | Day 55     |  PTX vector add kernel                                             |
 | Day 56     |  GELU activatation naive fp32 kernel                               |
 | Day 57     |  GELU activation vectorized                                        |
+| Day 58     |  Backward pass kernel for Relu activation                          |
 
