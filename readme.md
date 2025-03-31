@@ -62,4 +62,5 @@
 | Day 58     |  Backward pass kernel for Relu activation                          |
 | Day 59     |  Backward pass kernel for GELU activation                          |
 | Day 60     |  LeetGPU challenge - reduction                                     |
+| Day 61     |  Optimize + benchmarked gelu kernels                               |
 

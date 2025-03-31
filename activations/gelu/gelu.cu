@@ -42,6 +42,22 @@ __global__ void kernel2_gelu_4fp32_vectorized(float* in, float* out, int n){
 }
 
 
+/* Kernel 3: Half precision*/
+__global__ void kernel3_gelu_fp16(half* in, half* out, int n){
+    int tidx = threadIdx.x + (blockDim.x * blockIdx.x);
+
+    if(tidx < n){
+        half x = in[tidx];
+        float xf = __half2float(x);
+        float tanhx = sqrt2overPI * (xf + k * (xf * xf * xf));
+        float tanhv = tanh(tanhx);
+        half tanh_half = __float2half(tanhv);
+        out[tidx] = __hmul(__float2half(0.5f), __hmul(x, __hadd(__float2half(1.0f), tanh_half)));
+    }
+}
+
+
+
 int main(){
     const int N = 1024;
     size_t fp32_size = N * sizeof(float);
