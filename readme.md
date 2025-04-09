@@ -61,11 +61,12 @@
 | Day 57     |  GELU activation vectorized                                        |
 | Day 58     |  Backward pass kernel for Relu activation                          |
 | Day 59     |  Backward pass kernel for GELU activation                          |
-| Day 60     |  LeetGPU challenge - reduction                                     |
+| Day 60 🥳  |  LeetGPU challenge - reduction                                     |
 | Day 61     |  Optimize + benchmarked gelu kernels                               |
 | Day 62     |  Micrograd in CUDA                                                 |
 | Day 63     |  Micrograd in CUDA                                                 |
 | Day 64     |  Micrograd in CUDA                                                 |
 | Day 65     |  Micrograd in CUDA                                                 |
 | Day 66     |  Optimized Sigmoid activation                                      |
+| Day 67 - Day 70  🥳  |  Micrograd in CUDA                                         |
 
