@@ -68,5 +68,6 @@
 | Day 64     |  Micrograd in CUDA                                                 |
 | Day 65     |  Micrograd in CUDA                                                 |
 | Day 66     |  Optimized Sigmoid activation                                      |
-| Day 67 - Day 70  🥳  |  Micrograd in CUDA                                         |
+| Day 67 - Day 70  🥳  |  Micrograd in CUDA                                       |
+| Day 71     |  Sigmoid with half precision                                       |
 
