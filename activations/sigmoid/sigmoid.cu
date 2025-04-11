@@ -9,6 +9,7 @@
 #include <iostream>
 
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
+#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
 
 __global__ void kernel1_sigmoid_fp32(float* in, float* out, int n){
     int tidx = threadIdx.x + (blockDim.x * blockIdx.x);
@@ -44,6 +45,36 @@ __global__ void kernel3_sigmoid_fp16(half* in, half* out, int n){
 
 
 
+__global__ void kernel4_sigmoid_4fp16(half* in, half* out, int n) {
+    int tidx = (threadIdx.x + (blockDim.x * blockIdx.x)) * 4;
+    
+    if(tidx < n) {
+        half2* in2 = &HALF2(in[tidx]);
+        half2* out2 = &HALF2(out[tidx]);
+        
+        half2 x1 = in2[0]; 
+        half2 x2 = in2[1];
+
+        float2 fx1 = __half22float2(x1);
+        float2 fx2 = __half22float2(x2);
+        
+
+        float2 fy1, fy2;
+        fy1.x = 1.0f / (1.0f + expf(-fx1.x));
+        fy1.y = 1.0f / (1.0f + expf(-fx1.y));
+        fy2.x = 1.0f / (1.0f + expf(-fx2.x));
+        fy2.y = 1.0f / (1.0f + expf(-fx2.y));
+
+        half2 y1 = __float22half2_rn(fy1);
+        half2 y2 = __float22half2_rn(fy2);
+
+        out2[0] = y1;
+        out2[1] = y2;
+    }
+}
+
+
+
 
 int main(){
     const int N = 1024;
@@ -55,6 +86,7 @@ int main(){
     half *X_half;
     float *P3;
     half *dx_half, *dp_half;
+    half *dp_half_vec;
     
     X = (float*)malloc(fp32_size);
     P = (float*)malloc(fp32_size);
@@ -67,6 +99,7 @@ int main(){
     cudaMalloc((void**)&dp2, fp32_size);
     cudaMalloc((void**)&dx_half, fp16_size);
     cudaMalloc((void**)&dp_half, fp16_size);
+    cudaMalloc((void**)&dp_half_vec, fp16_size);
     
     for (int i = 0; i < N; ++i) {
         X[i] = (rand() / float(RAND_MAX)) * 2.0f - 1.0f;
@@ -116,6 +149,16 @@ int main(){
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&ms, start, stop);
     std::cout << "FP16 Kernel3 execution time: " << ms << " ms\n";
+
+
+
+    cudaEventRecord(start);
+    kernel4_sigmoid_4fp16<<<blocksPerGrid_vec, threadsPerBlock>>>(dx_half, dp_half_vec, N);
+    cudaDeviceSynchronize();
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&ms, start, stop);
+    std::cout << "Vectorized FP16*4 Kernel4 execution time: " << ms << " ms\n";
     
 
     cudaEventDestroy(start);
@@ -147,9 +190,25 @@ int main(){
     }
     std::cout << std::endl;
 
+    half* P_half_vec = (half*)malloc(fp16_size);
+    float* P4 = (float*)malloc(fp32_size);
+    cudaMemcpy(P_half_vec, dp_half_vec, fp16_size, cudaMemcpyDeviceToHost);
+    for (int i = 0; i < N; ++i) {
+        P4[i] = __half2float(P_half_vec[i]);
+    }
+
+    std::cout << "\nFirst 10 results from FP16 vectorized kernel:\n";
+    for (int i = 0; i < 10; ++i) {
+        std::cout << P4[i] << " ";
+    }
+    std::cout << std::endl;
+
 
     cudaFree(dx); cudaFree(dp); cudaFree(dp2); cudaFree(dx_half); cudaFree(dp_half);
     free(X); free(P); free(P2); free(P3); free(X_half); free(P_half);
+    cudaFree(dp_half_vec);
+    free(P_half_vec);
+    free(P4);
 
 
     return 0;
