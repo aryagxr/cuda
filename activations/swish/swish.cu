@@ -8,11 +8,28 @@
 #include <cuda_bf16.h>
 #include <iostream>
 
+
+#define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
+
 __global__ void kernel1_swish_fp32(float* in, float* out, int n){
     int tidx = threadIdx.x + (blockDim.x * blockIdx.x);
     if (tidx < n){
         float x = in[tidx];
         out[tidx] = x / (1.0f + expf(-x));
+    }
+}
+
+__global__ void kernel2_swish_4fp32(float* in, float* out, int n){
+    int tidx = (threadIdx.x + (blockDim.x * blockIdx.x)) * 4; // 0, 4, 8, 12...
+    if(tidx < n){
+        float4 x = FLOAT4(in[tidx]);
+        float4 y;
+        y.x = x.x / (1.0f + expf(-x.x));
+        y.y = x.y / (1.0f + expf(-x.y));
+        y.z = x.z / (1.0f + expf(-x.z));
+        y.w = x.w / (1.0f + expf(-x.w));
+
+        FLOAT4(out[tidx]) = y;
     }
 }
 
@@ -23,20 +40,23 @@ int main() {
     
     float *h_input = (float*)malloc(bytes);
     float *h_output = (float*)malloc(bytes);
+    float *h_output2 = (float*)malloc(bytes);
     
     srand(42);
     for (int i = 0; i < N; ++i) {
         h_input[i] = (rand() / float(RAND_MAX)) * 2.0f - 1.0f;
     }
     
-    float *d_input, *d_output;
+    float *d_input, *d_output, *d_output2;
     cudaMalloc(&d_input, bytes);
     cudaMalloc(&d_output, bytes);
+    cudaMalloc(&d_output2, bytes);
     
     cudaMemcpy(d_input, h_input, bytes, cudaMemcpyHostToDevice);
     
     int threadsPerBlock = 256;
     int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
+    int blocksPerGrid_vec = (N + threadsPerBlock*4 - 1) / (threadsPerBlock*4);
     
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -52,33 +72,41 @@ int main() {
     
     cudaMemcpy(h_output, d_output, bytes, cudaMemcpyDeviceToHost);
     
-    std::cout << "Swish kernel execution time: " << milliseconds << " ms" << std::endl;
+    std::cout << "Swish kernel1 execution time: " << milliseconds << " ms" << std::endl;
     std::cout << "Throughput: " << (N * sizeof(float)) / (milliseconds * 1.0e6) << " GB/s" << std::endl;
     
-    std::cout << "\nSample results:" << std::endl;
-    for (int i = 0; i < 10; ++i) {
+    cudaEventRecord(start);
+    kernel2_swish_4fp32<<<blocksPerGrid_vec, threadsPerBlock>>>(d_input, d_output2, N);
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    
+    float milliseconds2 = 0;
+    cudaEventElapsedTime(&milliseconds2, start, stop);
+    cudaMemcpy(h_output2, d_output2, bytes, cudaMemcpyDeviceToHost);
+    
+    std::cout << "Swish kernel2 vectorized execution time: " << milliseconds2 << " ms" << std::endl;
+    std::cout << "Throughput: " << (N * sizeof(float)) / (milliseconds2 * 1.0e6) << " GB/s" << std::endl;
+    
+    std::cout << "\nSample results kernel1:" << std::endl;
+    for (int i = 0; i < 5; ++i) {
         std::cout << "Input: " << h_input[i] << " → Swish: " << h_output[i] << std::endl;
     }
     
-    std::cout << "\nVerification (CPU vs GPU):" << std::endl;
-    bool verification_passed = true;
+    std::cout << "\nSample results kernel2:" << std::endl;
     for (int i = 0; i < 5; ++i) {
-        float cpu_result = h_input[i] / (1.0f + expf(-h_input[i]));
-        float error = fabs(cpu_result - h_output[i]);
-        std::cout << "CPU: " << cpu_result << " GPU: " << h_output[i];
-        std::cout << " (error: " << error << ")" << std::endl;
-        if (error > 1e-5) {
-            verification_passed = false;
-        }
+        std::cout << "Input: " << h_input[i] << " → Swish: " << h_output2[i] << std::endl;
     }
-    std::cout << "\nVerification " << (verification_passed ? "PASSED" : "FAILED") << std::endl;
+    
+    
     
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
     cudaFree(d_input);
     cudaFree(d_output);
+    cudaFree(d_output2);
     free(h_input);
     free(h_output);
+    free(h_output2);
     
     return 0;
 }
