@@ -73,3 +73,4 @@
 | Day 72     |  Sigmoid with fp16 vectorized                                      |
 | Day 73     |  Swish kernel                                                      |
 | Day 74     |  Swish kernel vectorized                                           |
+| Day 75     |  AMD hip kernel intro + vector add kernel                          |
