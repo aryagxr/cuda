@@ -75,3 +75,4 @@
 | Day 74     |  Swish kernel vectorized                                           |
 | Day 75     |  AMD hip kernel intro + vector add kernel                          |
 | Day 76     |  Revisiting gemm optimizations                                     |
+| Day 77     |  Gemm coalesced                                                    |
