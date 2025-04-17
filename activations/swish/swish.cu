@@ -34,6 +34,17 @@ __global__ void kernel2_swish_4fp32(float* in, float* out, int n){
 }
 
 
+__global__ void kernel3_swish_fp16(half* in, half* out, int n){
+    int tidx = threadIdx.x + (blockDim.x * blockIdx.x);
+    if (tidx < n){
+        half x = in[tidx];
+        float x_float = __half2float(x);
+        float result = x_float / (1.0f + expf(-x_float));
+        out[tidx] = __float2half(result);
+    }
+}
+
+
 int main() {
     const int N = 1024 * 1024;
     const size_t bytes = N * sizeof(float);
