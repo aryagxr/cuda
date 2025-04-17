@@ -44,6 +44,31 @@ __global__ void kernel3_swish_fp16(half* in, half* out, int n){
     }
 }
 
+#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
+
+__global__ void kernel4_swish_4fp16(half* in, half* out, int n) {
+    int tidx = (threadIdx.x + (blockDim.x * blockIdx.x)) * 4;
+    
+    if(tidx < n) {
+        half2 x1 = HALF2(in[tidx]);
+        half2 x2 = HALF2(in[tidx + 2]);
+        float2 fx1 = __half22float2(x1);
+        float2 fx2 = __half22float2(x2);
+        
+        float2 fy1, fy2;
+        fy1.x = fx1.x / (1.0f + expf(-fx1.x));
+        fy1.y = fx1.y / (1.0f + expf(-fx1.y));
+        fy2.x = fx2.x / (1.0f + expf(-fx2.x));
+        fy2.y = fx2.y / (1.0f + expf(-fx2.y));
+        
+        half2 y1 = __float22half2_rn(fy1);
+        half2 y2 = __float22half2_rn(fy2);
+        
+        HALF2(out[tidx]) = y1;
+        HALF2(out[tidx + 2]) = y2;
+    }
+}
+
 
 int main() {
     const int N = 1024 * 1024;
