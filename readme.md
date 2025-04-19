@@ -77,4 +77,5 @@
 | Day 76     |  Revisiting gemm optimizations                                     |
 | Day 77     |  Gemm coalesced                                                    |
 | Day 78     |  fp16 swish                                                        |
-| Day 79     |  AMD competition fp8 gemm & swish optimizations                  |
+| Day 79     |  AMD competition fp8 gemm & swish optimizations                    |
+| Day 80 🥳  |  AMD competition fp8 gemm optimizations                            |
