@@ -79,3 +79,4 @@
 | Day 78     |  fp16 swish                                                        |
 | Day 79     |  AMD competition fp8 gemm & swish optimizations                    |
 | Day 80 🥳  |  AMD competition fp8 gemm optimizations                            |
+| Day 81     |  AMD competition fp8 gemm optimizations                            |
