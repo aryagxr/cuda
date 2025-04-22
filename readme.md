@@ -80,4 +80,4 @@
 | Day 79     |  AMD competition fp8 gemm & swish optimizations                    |
 | Day 80 🥳  |  AMD competition fp8 gemm optimizations                            |
 | Day 81     |  AMD competition fp8 gemm optimizations                            |
-| Day 82     |  Micrograd in CUDA                                                 |
+| Day 82 - 83|  Micrograd in CUDA                                                 |
