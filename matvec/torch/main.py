@@ -6,7 +6,7 @@ from torch.utils.cpp_extension import load
 
 vectadd_module = torch.utils.cpp_extension.load(
     "vectadd_module",
-    sources=["/home/ari/cuda/matvec/torch/vect_add.cu"],
+    sources=["matvec/torch/vect_add.cu"],
     extra_cuda_cflags=["-O3"],
     verbose=True,
 )
