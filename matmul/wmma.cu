@@ -63,6 +63,8 @@ int main() {
         std::cout << "\n";
     }
     */
+
+
     
     half *d_A, *d_B;
     float *d_C;
@@ -74,9 +76,21 @@ int main() {
     cudaMemcpy(d_A, h_A, MATRIX_M * MATRIX_K * sizeof(half), cudaMemcpyHostToDevice);
     cudaMemcpy(d_B, h_B, MATRIX_K * MATRIX_N * sizeof(half), cudaMemcpyHostToDevice);
 
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    float ms = 0.f;
+    cudaEventRecord(start);
     
     kernel1_wmma_fp16<<<1, 32>>>(d_A, d_B, d_C);
+    cudaDeviceSynchronize();
 
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&ms, start, stop);
+    std::cout << "Kernel execution time: " << ms << " ms\n";
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     
     cudaMemcpy(h_C, d_C, MATRIX_M * MATRIX_N * sizeof(float), cudaMemcpyDeviceToHost);
 
