@@ -33,22 +33,26 @@ __global__ void tc_mma(half* A, half* B, float* C, float* D) {
     half* B_tile = B;
     float* C_tile = C;
 
-    int a_offset_base = (lane * 8) % (MATRIX_M * MATRIX_K); //16*16 = 256
+    int groupID = lane >> 2;
+    int tid_in_group = lane & 3;
+
+    // fragmenting logic from docs
     for (int i = 0; i < 8; ++i) {
-        int idx = (a_offset_base + i) % (MATRIX_M * MATRIX_K);
-        a_h[i] = A_tile[idx];
+        int row = (i < 2 || (i >= 4 && i < 6)) ? groupID : groupID + 8;
+        int col = (tid_in_group * 2) + (i & 1) + (i >= 4 ? 8 : 0);
+        a_h[i] = A_tile[row * MATRIX_K + col];
     }
 
-    int b_offset_base = (lane * 4) % (MATRIX_K * MATRIX_N); //16*8 = 128
     for (int i = 0; i < 4; ++i) {
-        int idx = (b_offset_base + i) % (MATRIX_K * MATRIX_N);
-        b_h[i] = B_tile[idx];
+        int row = (tid_in_group * 2) + (i & 1) + (i >= 2 ? 8 : 0);
+        int col = groupID;
+        b_h[i] = B_tile[row * MATRIX_N + col];
     }
 
-    int c_offset_base = (lane * 4) % (MATRIX_M * MATRIX_N); //16*8 = 128
     for (int i = 0; i < 4; ++i) {
-        int idx = (c_offset_base + i) % (MATRIX_M * MATRIX_N);
-        c_f[i] = C_tile[idx];
+        int row = (i < 2) ? groupID : groupID + 8;
+        int col = (tid_in_group * 2) + (i & 1);
+        c_f[i] = C_tile[row * MATRIX_N + col];
     }
 
     //pack bits to int
@@ -72,10 +76,14 @@ __global__ void tc_mma(half* A, half* B, float* C, float* D) {
     float Dfrag[4]; //output
     mma_m16n8k16(A_packed, B_packed, c_f, Dfrag);
 
-    int out_base = lane * 4;
+    
+    
     for (int i = 0; i < 4; ++i) {
-        D[out_base + i] = Dfrag[i];
+        int row = (i < 2) ? groupID : groupID + 8;
+        int col = (tid_in_group * 2) + (i & 1);
+        D[row * MATRIX_N + col] = Dfrag[i];
     }
+
 
 }
 
