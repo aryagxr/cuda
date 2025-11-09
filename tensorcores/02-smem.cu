@@ -163,7 +163,8 @@ int main() {
     half *hA = (half*)malloc(sizeA * sizeof(half));
     half *hB = (half*)malloc(sizeB * sizeof(half));
     float *hC = (float*)malloc(sizeC * sizeof(float));
-    float *hD = (float*)malloc(32 * 4 * sizeof(float));
+    // allocate full M x N matrix on host for D
+    float *hD = (float*)malloc(sizeC * sizeof(float));
 
     for (int i = 0; i < sizeA; ++i) hA[i] = __float2half( (float)(i % 7 + 1) * 0.1f );
     for (int i = 0; i < sizeB; ++i) hB[i] = __float2half( (float)(i % 5 + 1) * 0.2f );
@@ -200,7 +201,7 @@ int main() {
 
     printf("Kernel execution time: %f ms\n", milliseconds);
 
-    cudaMemcpy(hD, dD, 32 * 4 * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hD, dD, sizeC * sizeof(float), cudaMemcpyDeviceToHost);
 
     // Print results from first 8 lanes
     printf("Results (per-lane D fragments) — first 8 lanes:\n");
