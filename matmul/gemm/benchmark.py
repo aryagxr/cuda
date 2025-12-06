@@ -25,26 +25,49 @@ wf32 = w.float()
 def bench(fn, *args, iters=50):
     # warmup
     for _ in range(10):
-        fn(*args)
+        result = fn(*args)
     torch.cuda.synchronize()
 
     # timing
     start = time.time()
     for _ in range(iters):
-        fn(*args)
+        result = fn(*args)
     torch.cuda.synchronize()
 
     dt = (time.time() - start) / iters
     tflops = FLOPs / (dt * 1e12)
-    return dt * 1000, tflops
+    return dt * 1000, tflops, result
 
 
+print("Computing reference result...")
+ref = torch.matmul(x, w)
+print("Done.\n")
+
+print("=== Correctness Check ===")
 results = {}
 
-results["naive_fp32"] = bench(matmul.matmul_naive_fp32, xf32, wf32)
-results["naive_bf16"] = bench(matmul.matmul_naive_bf16, x, w)
-results["smem_bf16"]  = bench(matmul.matmul_smem_bf16, x, w)
-results["torch_bmm"]  = bench(torch.matmul, x, w)
+kernels = [
+    ("naive_fp32", matmul.matmul_naive_fp32, xf32, wf32),
+    ("naive_bf16", matmul.matmul_naive_bf16, x, w),
+    ("smem_bf16", matmul.matmul_smem_bf16, x, w),
+    ("blocktiling_1d", matmul.blocktiling_1d, x, w),
+    ("torch_bmm", torch.matmul, x, w),
+]
+
+for name, fn, *args in kernels:
+    ms, tflops, result = bench(fn, *args)
+    results[name] = (ms, tflops)
+    
+    diff = torch.abs(result.float() - ref.float())
+    max_diff = diff.max().item()
+    mean_diff = diff.mean().item()
+    
+    if max_diff <= 1.0: 
+        status = "✅ PASS"
+    else:
+        status = "❌ FAIL"
+    
+    print(f"{name:15s}  {status}  (max_diff: {max_diff:.6f}, mean_diff: {mean_diff:.6f})")
 
 print("\n=== Benchmark Results ===")
 for name, (ms, tflops) in results.items():
