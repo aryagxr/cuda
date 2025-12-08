@@ -51,6 +51,7 @@ kernels = [
     ("naive_bf16", matmul.matmul_naive_bf16, x, w),
     ("smem_bf16", matmul.matmul_smem_bf16, x, w),
     ("blocktiling_1d", matmul.blocktiling_1d, x, w),
+    ("MMA_tc_ldmatrix", matmul.matmul_mma_bf16, x, w),
     ("torch_bmm", torch.matmul, x, w),
 ]
 

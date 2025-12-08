@@ -127,8 +127,8 @@ __global__ void blocktile_1d(const __nv_bfloat16* A, const __nv_bfloat16* B, __n
     int global_col = blockcol + tidx;
 
     //linear index
-    int tdx = tidy * BLOCKSIZE + tidx; 
-    int numThreads = BLOCKSIZE * BLOCKSIZE; 
+    int tdx = tidy * blockDim.x + tidx; 
+    int numThreads = blockDim.x * BLOCKSIZE; 
 
 
     //accumulate per thread output (4 outputs)
@@ -197,6 +197,135 @@ __global__ void blocktile_1d(const __nv_bfloat16* A, const __nv_bfloat16* B, __n
     
 
 }
+
+
+//mma function to multiply one tile
+static inline __device__ void mma_m16n8k16_bf16(const uint32_t *Afrag, const uint32_t *Bfrag, float *Cacc) {
+    asm volatile(
+        "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
+        "{%0, %1, %2, %3}, "
+        "{%4, %5, %6, %7}, "
+        "{%8, %9}, "
+        "{%0, %1, %2, %3};\n"
+        : "+f"(Cacc[0]), "+f"(Cacc[1]), "+f"(Cacc[2]), "+f"(Cacc[3])
+        : "r"(Afrag[0]), "r"(Afrag[1]), "r"(Afrag[2]), "r"(Afrag[3]),
+          "r"(Bfrag[0]), "r"(Bfrag[1])
+    );
+}
+
+
+//mma and ldmatrix using tensor cores 
+
+__global__ void mma_tc_kernel1(const __nv_bfloat16* A, const __nv_bfloat16* B, __nv_bfloat16* C, int M, int K, int N){
+
+    int lane = threadIdx.x & 31;
+    if (lane >= 32) return;
+
+    //to point to the tile of C we are in
+    int c_tile_col = blockIdx.x * 8; 
+    int c_tile_row = blockIdx.y * 16;
+
+    //4 elements per thread computed in a C tile output
+    float c_tile[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+
+    //smem stores 16*16 A tile and 16*8 B tile
+    extern __shared__ unsigned char shared_mem[]; //allocate sizeof(bf16)*(16*16+16*8)
+    __nv_bfloat16* A_shared = reinterpret_cast<__nv_bfloat16*>(shared_mem);
+    __nv_bfloat16* B_shared = reinterpret_cast<__nv_bfloat16*>(shared_mem + sizeof(__nv_bfloat16) * 16 * 16);
+
+    int group_id = lane >> 2;
+    int lane_in_group = lane & 3;
+
+    //loop through K dim
+    //one tile at a time
+    for(int k0 = 0; k0<K; k0+= 16){
+
+        //load A and B tile into shared mem
+        if (lane < 16) {
+            int row = lane; // 0..15
+
+            // Load A_shared[row][0..15]
+            for (int t = 0; t < 16; ++t) {
+                int glob_r = c_tile_row + row;
+                int glob_c = k0 + t;
+                if (glob_r < M && glob_c < K) {
+                    A_shared[row * 16 + t] = A[glob_r * K + glob_c];
+                } else {
+                    A_shared[row * 16 + t] = __float2bfloat16(0.0f);
+                }
+            }
+
+            // Load B_shared[row][0..7]
+            for (int t = 0; t < 8; ++t) {
+                int glob_r = k0 + row;
+                int glob_c = c_tile_col + t;
+                if (glob_r < K && glob_c < N) {
+                    B_shared[row * 8 + t] = B[glob_r * N + glob_c];
+                } else {
+                    B_shared[row * 8 + t] = __float2bfloat16(0.0f);
+                }
+            }
+        }
+
+        
+        __syncthreads();
+
+        // compute shared memory addresses for ldmatrix
+        // A: ldmatrix.m8n8.x4.shared.b16 using pointer to &A_shared[(lane%16)][(lane/16)*8]
+        // B: ldmatrix.m8n8.x2.shared.trans.b16 using pointer to &B_shared[(lane%16)][0]
+        unsigned int a_addr = 0u, b_addr = 0u;
+        {
+            int lane_id = lane;
+            __nv_bfloat16* aptr = &A_shared[(lane_id % 16) * 16 + (lane_id / 16) * 8];
+            __nv_bfloat16* bptr = &B_shared[(lane_id % 16) * 8 + 0];
+            a_addr = (unsigned int)__cvta_generic_to_shared(aptr);
+            b_addr = (unsigned int)__cvta_generic_to_shared(bptr);
+        }
+
+        // store ldmatrix outputs in registers
+        int a_regs[4];
+        int b_regs[2];
+
+        // ldmatrix load for A (x4)
+        asm volatile(
+            "ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0, %1, %2, %3}, [%4];\n"
+            : "=r"(a_regs[0]), "=r"(a_regs[1]), "=r"(a_regs[2]), "=r"(a_regs[3])
+            : "r"(a_addr)
+        );
+
+        // ldmatrix load for B (transposed; x2)
+        asm volatile(
+            "ldmatrix.sync.aligned.m8n8.x2.shared.trans.b16 {%0, %1}, [%2];\n"
+            : "=r"(b_regs[0]), "=r"(b_regs[1])
+            : "r"(b_addr)
+        );
+
+        // call mma to accumulate into c_frag
+        mma_m16n8k16_bf16(reinterpret_cast<const uint32_t*>(a_regs),
+                          reinterpret_cast<const uint32_t*>(b_regs),
+                          c_tile);
+
+        __syncthreads();
+    }
+
+    // write back c_frag to global C as bf16
+    // each lane writes up to 4 elements into the 16x8 tile
+    for (int i = 0; i < 4; ++i) {
+        int local_row = (i < 2) ? group_id : group_id + 8;
+        int local_col = lane_in_group * 2 + (i & 1);
+        int glob_r = c_tile_row + local_row;
+        int glob_c = c_tile_col + local_col;
+
+        if (glob_r < M && glob_c < N) {
+            __nv_bfloat16 out = __float2bfloat16(c_tile[i]);
+            C[glob_r * N + glob_c] = out;
+        }
+
+    }
+    
+}
+
 
 
 
@@ -270,7 +399,7 @@ torch::Tensor blocktiling_1d(torch::Tensor A, torch::Tensor B){
 
     auto C = torch::zeros({M, N}, A.options());
 
-    dim3 threads(BLOCKSIZE, BLOCKSIZE);
+    dim3 threads(BN, BM / NUM_C_PER_THD);
     // dim3 blocks((N + BLOCKSIZE - 1) / BLOCKSIZE,
     //             (M + BLOCKSIZE - 1) / BLOCKSIZE);
     dim3 blocks((N + BN - 1) / BN,
@@ -287,9 +416,36 @@ torch::Tensor blocktiling_1d(torch::Tensor A, torch::Tensor B){
 
 
 
+torch::Tensor matmul_mma_bf16(torch::Tensor A, torch::Tensor B) {
+    A = A.contiguous();
+    B = B.contiguous();
+    int M = A.size(0), K = A.size(1), N = B.size(1);
+
+    auto C = torch::zeros({M, N}, A.options());
+
+    // one warp per tile
+    dim3 threads(32, 1, 1);
+    dim3 blocks((N + 8 - 1) / 8, (M + 16 - 1) / 16, 1);
+
+    // shared mem bytes: sizeof(bf16) * (16*16 + 16*8)
+    size_t shmem = sizeof(__nv_bfloat16) * (16 * 16 + 16 * 8);
+
+    mma_tc_kernel1<<<blocks, threads, shmem>>>(
+        reinterpret_cast<const __nv_bfloat16*>(A.data_ptr<at::BFloat16>()),
+        reinterpret_cast<const __nv_bfloat16*>(B.data_ptr<at::BFloat16>()),
+        reinterpret_cast<__nv_bfloat16*>(C.data_ptr<at::BFloat16>()),
+        M, K, N
+    );
+
+    return C;
+}
+
+
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("matmul_naive_fp32", &matmul_naive_fp32);
     m.def("matmul_naive_bf16", &matmul_naive_bf16);
     m.def("matmul_smem_bf16", &matmul_smem_bf16);
     m.def("blocktiling_1d", &blocktiling_1d);
+    m.def("matmul_mma_bf16", &matmul_mma_bf16);
 }
